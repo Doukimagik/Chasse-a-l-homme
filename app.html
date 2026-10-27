@@ -119,6 +119,12 @@ details.bonus summary{font-weight:700;min-height:42px;display:flex;align-items:c
 #consent{position:fixed;left:10px;right:10px;top:calc(var(--sat, env(safe-area-inset-top,0px)) + 64px);z-index:4500;background:var(--bg);color:var(--fg);border:3px solid #facc15;border-radius:16px;padding:14px 16px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:6px;font-size:14px;line-height:1.35}
 #consent[hidden]{display:none}
 #consent b{font-size:17px}
+#vconsent{position:fixed;left:10px;right:10px;top:calc(var(--sat, env(safe-area-inset-top,0px)) + 64px);z-index:4500;background:var(--bg);color:var(--fg);border:3px solid #3b82f6;border-radius:16px;padding:14px 16px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:6px;font-size:14px;line-height:1.35}
+#vconsent[hidden]{display:none}
+#vconsent b{font-size:17px}
+#vpanel{position:fixed;left:8px;right:8px;bottom:calc(var(--sab, env(safe-area-inset-bottom,0px)) + 8px);z-index:1001;background:var(--bg);border-radius:20px;padding:16px 18px;box-shadow:var(--shadow);max-width:520px;margin:0 auto}
+#vpanel[hidden]{display:none}
+.pl{width:16px;height:16px;border-radius:50%;background:#3b82f6;border:3px solid #fff;box-shadow:var(--shadow)}
 </style>
 </head>
 <body>
@@ -153,6 +159,8 @@ details.bonus summary{font-weight:700;min-height:42px;display:flex;align-items:c
         <div class="opt" id="oTimer" hidden><p class="st" id="stTimer"></p><div class="inl"><input type="number" id="tMin" value="30" min="1"> min <button class="b sm" id="tGo" type="button">Lancer</button><button class="b sm warn" id="tStop" type="button">Arrêter</button></div></div></div>
       <div class="bo"><label class="chk"><input type="checkbox" id="bBattle"><span><b>Bataille finale</b><small>Un très grand cercle collé à l’admin de terrain, qui rétrécit sans arrêt. À ce moment-là, tous les joueurs voient sa position (point jaune).</small></span></label>
         <div class="opt" id="oBattle" hidden><p class="st" id="stBattle"></p><div class="inl">durée <input type="number" id="bDur" value="10" min="1"> min, rayon final <input type="number" id="bR1" value="30" min="10"> m</div><div class="inl"><button class="b sm" id="bGo" type="button">Lancer</button><button class="b sm warn" id="bStop" type="button">Arrêter</button></div></div></div>
+      <div class="bo"><label class="chk"><input type="checkbox" id="bVisit"><span><b>Mode visiteur</b><small>Les joueurs qui acceptent partagent leur position avec les visiteurs, qui les voient en bleu. Les visiteurs entrent avec leur propre code.</small></span></label>
+        <div class="opt" id="oVisit" hidden><p class="hint">Valide ensuite pour prévenir les joueurs : ils verront une demande de partage.</p></div></div>
     </details>
     <div class="step"><span class="n">3</span><div><strong>Valide</strong><p class="hint">Les joueurs voient le changement en quelques secondes.</p></div></div>
     <button class="b main" id="ok" type="button">Valider et envoyer</button>
@@ -167,6 +175,17 @@ details.bonus summary{font-weight:700;min-height:42px;display:flex;align-items:c
 <div id="ghostBar"><span id="gtxt"></span><button class="b sm" id="gcancel" type="button">Annuler</button></div>
 <div id="timer" hidden></div>
 <div id="toast" role="status"></div>
+<div id="vconsent" role="dialog" aria-labelledby="vtt" hidden>
+  <b id="vtt">Partager ta position ?</b>
+  <span>Un mode visiteur est activé : les visiteurs verront ta position (point bleu). Les autres joueurs ne la voient pas.</span>
+  <div class="btns"><button class="b main2" id="vYes" type="button">Oui, partager</button><button class="b" id="vNo" type="button">Non</button></div>
+</div>
+<section id="vpanel" hidden aria-label="Mode visiteur">
+  <div class="phead"><h2>Mode visiteur</h2><button class="b sm" id="vClose" type="button">Fermer</button></div>
+  <label class="chk"><input type="checkbox" id="vFollow"><span><b>Suivre tout le monde</b><small>Tu vois l’admin de terrain en jaune et tous les joueurs en bleu.</small></span></label>
+  <p class="st" id="vStat"></p>
+  <div class="btns"><button class="b warn" id="vQuit" type="button">Quitter le mode visiteur</button></div>
+</section>
 <div id="consent" role="dialog" aria-labelledby="ctt" hidden>
   <b id="ctt">Partager ta position ?</b>
   <span>L’admin virtuel doit voir ta position (point jaune) pour gérer la partie. Seuls les admins la voient, et tous les joueurs pendant la bataille finale.</span>
@@ -191,10 +210,10 @@ details.bonus summary{font-weight:700;min-height:42px;display:flex;align-items:c
 </div></div>
 <div class="veil" id="pinV"><div class="card" role="dialog" aria-labelledby="pt">
   <h2 id="pt">Mode administrateur</h2>
-  <p class="sub">Entre ton code pour régler la partie.</p>
+  <p class="sub">Entre ton code (admin ou visiteur).</p>
   <input id="pin" type="password" autocomplete="off" autocapitalize="characters" aria-label="Code administrateur">
   <label class="chk"><input type="checkbox" id="pinField"> Je suis l’admin de terrain (je me cache)</label>
-  <p class="hint">Sans la case : admin virtuel, qui gère la partie à distance.</p>
+  <p class="hint">Sans la case : admin virtuel, qui gère à distance. Le code visiteur ignore cette case.</p>
   <button class="b main" id="pinOk" type="button">Ouvrir</button>
   <button class="b" id="pinNo" type="button" style="width:100%;margin-top:8px">Annuler</button>
 </div></div>
@@ -203,10 +222,11 @@ details.bonus summary{font-weight:700;min-height:42px;display:flex;align-items:c
 <script>
 // Le code admin n’est plus écrit en clair : seule son empreinte est ici
 const SALT = "lg-6e437d03c7a6ede2", PIN_HASH = "9b24904a8e6ff277baa0b17535db7d0463faaf97f60eccce30e449a784c17047";
-async function hashCode(v) {
+const VSALT = "lg-1d3fbdb585c91435", VISIT_HASH = "720b4181ac19147f3a21b9004823ead760d490c693151656ff0f2bd88cc1c4cc";
+async function hashCode(v, salt = SALT) {
   const n = v.toUpperCase().replace(/[^A-Z0-9]/g, "");
   const k = await crypto.subtle.importKey("raw", new TextEncoder().encode(n), "PBKDF2", false, ["deriveBits"]);
-  const b = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: new TextEncoder().encode(SALT), iterations: 150000, hash: "SHA-256" }, k, 256);
+  const b = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: new TextEncoder().encode(salt), iterations: 150000, hash: "SHA-256" }, k, 256);
   return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join("");
 }
 // Adresse de ta base Firebase, sans / à la fin. Laisse vide pour le mode « lien » seul.
@@ -220,7 +240,7 @@ const show = id => $(id).classList.add("show"), hide = id => $(id).classList.rem
 let tt;
 function toast(t) { const e = $("toast"); e.textContent = t; e.classList.add("show"); clearTimeout(tt); tt = setTimeout(() => e.classList.remove("show"), 2600); }
 function setFold(b) { $("panel").classList.toggle("fold", b); $("fold").textContent = b ? "Agrandir" : "Réduire"; }
-let gpsErrMsg = "", role = null, posData = null, hiderMk = null, lastPush = 0, bCenter = null, bRad = 0, lastPos = null, lastAcc = 0, ch = null, selfPush = false, cfg = null, fromLink = false, admin = false, placing = false, handle = null;
+let follow = false, visCount = 0, gpsErrMsg = "", role = null, posData = null, hiderMk = null, lastPush = 0, bCenter = null, bRad = 0, lastPos = null, lastAcc = 0, ch = null, selfPush = false, cfg = null, fromLink = false, admin = false, placing = false, handle = null;
 
 try {
   const m = location.hash.match(/z=([^&]+)/);
@@ -378,19 +398,25 @@ function exitAdmin() {
 
 $("adminBtn").onclick = () => {
   if (admin) return;
+  if (role === "visiteur") { $("vpanel").hidden = !$("vpanel").hidden; if (!$("vpanel").hidden) $("vFollow").checked = follow; return; }
   if (role) { enterAdmin(); return; }
   $("pin").value = "";
   show("pinV");
   setTimeout(() => $("pin").focus(), 60);
 };
 $("pinOk").onclick = async () => {
-  let ok = false;
-  try { ok = (await hashCode($("pin").value)) === PIN_HASH; } catch (e) { toast("Ouvre le site en https"); return; }
-  if (!ok) { await new Promise(r => setTimeout(r, 1000)); toast("Code incorrect"); $("pin").value = ""; return; }
-  role = $("pinField").checked ? "terrain" : "virtuel";
+  let kind = "";
+  try {
+    const v = $("pin").value;
+    if ((await hashCode(v, SALT)) === PIN_HASH) kind = "admin";
+    else if ((await hashCode(v, VSALT)) === VISIT_HASH) kind = "visit";
+  } catch (e) { toast("Ouvre le site en https"); return; }
+  if (!kind) { await new Promise(r => setTimeout(r, 1000)); toast("Code incorrect"); $("pin").value = ""; return; }
+  role = kind === "visit" ? "visiteur" : ($("pinField").checked ? "terrain" : "virtuel");
   try { sessionStorage.setItem("lg_role", role); } catch (e) {}
   hide("pinV");
-  enterAdmin();
+  setAdminLabel();
+  if (kind === "visit") openVisitor(); else enterAdmin();
 };
 $("pinNo").onclick = () => hide("pinV");
 $("pin").onkeydown = e => { if (e.key === "Enter") $("pinOk").click(); };
@@ -492,6 +518,7 @@ function tick() {
     if (c) { bCenter = c; bRad = battleRadius(cfg.battle); bc.setLatLng(c).setRadius(bRad); if (!map.hasLayer(bc)) bc.addTo(map); updateStatus(); }
   } else { bCenter = null; if (map.hasLayer(bc)) map.removeLayer(bc); }
   if (role) updateStatus();
+  if (role === "visiteur") $("vStat").textContent = follow ? "Joueurs visibles : " + visCount + " · admin de terrain : " + (posData && Date.now() - posData.t < 30000 ? "en direct" : "pas de position") : "Suivi désactivé : tu vois seulement la carte.";
   if (admin) bonusStatus();
   consentCheck();
 }
@@ -499,7 +526,7 @@ setInterval(tick, 1000);
 
 async function pollPos() {
   if (!DB || role === "terrain") return;
-  const showMk = role === "virtuel" || battleActive(cfg);
+  const showMk = role === "virtuel" || (role === "visiteur" && follow) || battleActive(cfg);
   if (hiderMk && !showMk) { map.removeLayer(hiderMk); hiderMk = null; }
   if (!showMk) return;
   try {
@@ -522,7 +549,7 @@ function pushState() {
     .then(r => toast(r.ok ? "Envoyé aux joueurs ✓" : "Échec de l’envoi")).catch(() => toast("Pas de connexion"));
 }
 
-const BON = { bTrack: ["track", "oTrack"], bAuto: ["auto", "oAuto"], bTimer: ["timer", "oTimer"], bBattle: ["battle", "oBattle"] };
+const BON = { bTrack: ["track", "oTrack"], bAuto: ["auto", "oAuto"], bTimer: ["timer", "oTimer"], bBattle: ["battle", "oBattle"], bVisit: ["visit", "oVisit"] };
 function loadBonus() {
   const b = cfg.bonus || {};
   for (const id in BON) { $(id).checked = !!b[BON[id][0]]; $(BON[id][1]).hidden = !$(id).checked; }
@@ -629,7 +656,10 @@ let shareMsg = "", shareErr = false, consent = null;
 try { consent = sessionStorage.getItem("lg_consent"); } catch (e) {}
 function saveConsent(v) { consent = v; try { sessionStorage.setItem("lg_consent", v); } catch (e) {} }
 function trackWanted() { return true; }
-function consentCheck() { $("consent").hidden = !(role === "terrain" && trackWanted(cfg) && !consent); }
+function consentCheck() {
+  $("consent").hidden = !(role === "terrain" && trackWanted(cfg) && !consent);
+  $("vconsent").hidden = !(!role && DB && visitOn() && !pconsent);
+}
 $("cYes").onclick = () => { saveConsent("yes"); consentCheck(); startGps(); pushPos(); toast("Partage de ta position activé ✓"); };
 $("cNo").onclick = () => { saveConsent("no"); consentCheck(); updateStatus(); toast("Partage refusé : le suivi reste désactivé"); };
 $("status").onclick = () => {
@@ -646,7 +676,68 @@ function pushPos() {
 }
 setInterval(pushPos, 4000);
 
-function setAdminLabel() { $("adminBtn").innerHTML = "Admin" + (role === "terrain" ? '<i class="dotY"></i>' : "") + (admin ? " ✓" : ""); }
+// ---------------- Mode visiteur (web uniquement) ----------------
+try { follow = sessionStorage.getItem("lg_follow") === "1"; } catch (e) {}
+const pid = (() => {
+  let v = "";
+  try { v = localStorage.getItem("lg_pid") || ""; if (!v) { v = Math.random().toString(16).slice(2, 12); localStorage.setItem("lg_pid", v); } }
+  catch (e) { v = Math.random().toString(16).slice(2, 12); }
+  return v;
+})();
+let pconsent = null;
+try { pconsent = sessionStorage.getItem("lg_pconsent"); } catch (e) {}
+function savePConsent(v) { pconsent = v; try { sessionStorage.setItem("lg_pconsent", v); } catch (e) {} }
+const visitOn = () => !!(cfg.bonus && cfg.bonus.visit);
+$("vYes").onclick = () => { savePConsent("yes"); consentCheck(); pushSelf(); toast("Position partagée avec les visiteurs ✓"); };
+$("vNo").onclick = () => { savePConsent("no"); consentCheck(); toast("Partage refusé : les visiteurs ne te voient pas"); };
+
+// Les joueurs qui ont accepté envoient leur position (vue seulement par les visiteurs)
+function pushSelf() {
+  if (!(DB && !role && visitOn() && pconsent === "yes" && lastPos)) return;
+  fetch(DBU + "/players/" + pid + ".json", { method: "PUT", body: JSON.stringify({ lat: lastPos[0], lng: lastPos[1], t: Date.now() }) }).catch(() => {});
+}
+setInterval(pushSelf, 5000);
+addEventListener("pagehide", () => { if (DB && !role) fetch(DBU + "/players/" + pid + ".json", { method: "DELETE", keepalive: true }).catch(() => {}); });
+
+// Le visiteur voit les joueurs en bleu
+const others = {};
+async function pollPlayers() {
+  if (!(DB && role === "visiteur" && follow)) { for (const k in others) { map.removeLayer(others[k]); delete others[k]; } return; }
+  try {
+    const all = (await (await fetch(DBU + "/players.json", { cache: "no-store" })).json()) || {};
+    const now = Date.now(); let n = 0;
+    for (const k in others) if (!all[k] || now - all[k].t > 60000) { map.removeLayer(others[k]); delete others[k]; }
+    for (const k in all) {
+      const p = all[k];
+      if (!p || !p.lat || now - p.t > 60000) continue;
+      n++;
+      const ll = [p.lat, p.lng];
+      if (others[k]) others[k].setLatLng(ll);
+      else others[k] = L.marker(ll, { icon: L.divIcon({ className: "", html: '<div class="pl"></div>', iconSize: [16, 16], iconAnchor: [8, 8] }), interactive: false, zIndexOffset: 500 }).addTo(map);
+    }
+    visCount = n;
+  } catch (e) {}
+}
+setInterval(pollPlayers, 4000);
+
+function openVisitor() { $("vFollow").checked = follow; $("vpanel").hidden = false; }
+$("vFollow").onchange = e => {
+  follow = e.target.checked;
+  try { sessionStorage.setItem("lg_follow", follow ? "1" : "0"); } catch (x) {}
+  setAdminLabel(); pollPlayers(); pollPos();
+  toast(follow ? "Suivi activé : admin en jaune, joueurs en bleu" : "Suivi désactivé");
+};
+$("vClose").onclick = () => { $("vpanel").hidden = true; };
+$("vQuit").onclick = () => {
+  role = null; follow = false;
+  try { sessionStorage.removeItem("lg_role"); sessionStorage.removeItem("lg_follow"); } catch (e) {}
+  $("vpanel").hidden = true; setAdminLabel(); pollPlayers(); pollPos();
+  toast("Mode visiteur quitté");
+};
+function setAdminLabel() {
+  if (role === "visiteur") { $("adminBtn").innerHTML = "Visiteur" + (follow ? " ✓" : ""); return; }
+  $("adminBtn").innerHTML = "Admin" + (role === "terrain" ? '<i class="dotY"></i>' : "") + (admin ? " ✓" : "");
+}
 $("okQuick").onclick = () => $("ok").click();
 
 draw();
