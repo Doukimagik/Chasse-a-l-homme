@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1f7a54">
 <meta name="mobile-web-app-capable" content="yes">
+
 <title>Loup géant – carte du quartier</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
@@ -67,10 +68,21 @@ input[type=range]{height:34px}
 .sw.red{border-radius:50%;border:3px dashed #e03131;background:rgba(224,49,49,.2)}
 .sw.green{border-radius:8px;border:4px solid var(--zone)}
 .sw.grey{border-radius:8px;background:#7d838c}
-#pin{width:100%;font-size:24px;letter-spacing:.4em;text-align:center;padding:12px;border:1.5px solid var(--line);border-radius:12px;background:transparent;color:var(--fg)}
+#pin{width:100%;font-size:24px;letter-spacing:.15em;text-align:center;padding:12px;border:1.5px solid var(--line);border-radius:12px;background:transparent;color:var(--fg)}
 #toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 66px);transform:translateX(-50%);z-index:3000;background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;font-weight:700;opacity:0;pointer-events:none;transition:opacity .25s;max-width:90%;text-align:center}
 #toast.show{opacity:1}
 @media (min-width:700px){.veil{align-items:center}}
+.chandle{background:#e03131;color:#fff;border-radius:50%;width:38px;height:38px;display:grid;place-items:center;font-size:20px;border:3px solid #fff;box-shadow:var(--shadow)}
+.chk{display:flex;align-items:center;gap:10px;margin:8px 0 0;font-size:14px;min-height:38px}
+.chk input{width:22px;height:22px;accent-color:var(--zone)}
+#timer{position:fixed;top:calc(env(safe-area-inset-top,0px) + 12px);left:50%;transform:translateX(-50%);z-index:900;background:var(--fg);color:var(--bg);border-radius:999px;padding:0 16px;height:42px;display:flex;align-items:center;font:700 17px inherit;font-variant-numeric:tabular-nums;box-shadow:var(--shadow)}
+#timer[hidden]{display:none}
+.hider{width:40px;height:40px;border-radius:50%;background:var(--bg);display:grid;place-items:center;font-size:22px;border:3px solid #c2410c;box-shadow:var(--shadow)}
+details.bonus{border:1.5px solid var(--line);border-radius:14px;padding:4px 14px;margin:14px 0 0}
+details.bonus summary{font-weight:700;min-height:42px;display:flex;align-items:center;cursor:pointer}
+.opt{margin:0 0 8px 32px}
+.inl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0;font-size:14px}
+.inl input[type=number]{width:70px;padding:8px;font-size:16px;border:1.5px solid var(--line);border-radius:10px;background:transparent;color:var(--fg)}
 </style>
 </head>
 <body>
@@ -88,9 +100,20 @@ input[type=range]{height:34px}
     <div class="step"><span class="n">1</span><div><strong>Place la zone</strong><p class="hint">Glisse la poignée orange pour déplacer le carré, puis règle sa taille.</p></div></div>
     <div class="row"><label for="w">Largeur</label><input id="w" type="range" min="100" max="3000" step="50"><output id="wo"></output></div>
     <div class="row"><label for="h">Hauteur</label><input id="h" type="range" min="100" max="3000" step="50"><output id="ho"></output></div>
-    <div class="step"><span class="n">2</span><div><strong>Marque la cachette</strong><p class="hint" id="hint">Appuie sur « Placer le cercle », puis touche la carte.</p></div></div>
+    <div class="step"><span class="n">2</span><div><strong>Marque la cachette</strong><p class="hint" id="hint">Appuie sur « Placer le cercle », puis touche la carte. Ensuite, déplace-le avec la poignée rouge.</p></div></div>
     <div class="row"><label for="r">Rayon du cercle</label><input id="r" type="range" min="20" max="500" step="10"><output id="ro"></output></div>
+    <label class="chk"><input type="checkbox" id="vis" checked> Montrer le cercle aux joueurs</label>
     <div class="btns"><button class="b" id="place" type="button">Placer le cercle</button><button class="b warn" id="clear" type="button">Retirer le cercle</button></div>
+    <details class="bonus"><summary>Bonus</summary>
+      <label class="chk"><input type="checkbox" id="bTrack"> Suivi de l’admin de terrain</label>
+      <div class="opt" id="oTrack" hidden><p class="hint">L’admin de terrain partage sa position, que seul l’admin virtuel voit sur sa carte. Garde la page ouverte sur son téléphone.</p></div>
+      <label class="chk"><input type="checkbox" id="bAuto"> Cercle automatique</label>
+      <div class="opt" id="oAuto" hidden><p class="hint">Prend la position de la cachette et place le cercle au hasard autour, jamais centré dessus. Nécessite le suivi.</p><button class="b" id="genC" type="button">Générer le cercle</button></div>
+      <label class="chk"><input type="checkbox" id="bTimer"> Minuteur</label>
+      <div class="opt" id="oTimer" hidden><div class="inl"><input type="number" id="tMin" value="30" min="1"> min <button class="b sm" id="tGo" type="button">Lancer</button><button class="b sm warn" id="tStop" type="button">Arrêter</button></div></div>
+      <label class="chk"><input type="checkbox" id="bBattle"> Bataille finale</label>
+      <div class="opt" id="oBattle" hidden><p class="hint">Un très grand cercle collé à l’admin de terrain, qui rétrécit sans arrêt jusqu’au rayon final.</p><div class="inl">durée <input type="number" id="bDur" value="10" min="1"> min, final <input type="number" id="bR1" value="30" min="10"> m</div><div class="inl"><button class="b sm" id="bGo" type="button">Lancer</button><button class="b sm warn" id="bStop" type="button">Arrêter</button></div></div>
+    </details>
     <div class="step"><span class="n">3</span><div><strong>Valide</strong><p class="hint">Les joueurs voient le changement en quelques secondes.</p></div></div>
     <button class="b main" id="ok" type="button">Valider et envoyer</button>
     <div id="share" hidden>
@@ -101,6 +124,7 @@ input[type=range]{height:34px}
   </div>
 </section>
 
+<div id="timer" hidden></div>
 <div id="toast" role="status"></div>
 <div class="veil" id="helpV"><div class="card" role="dialog" aria-labelledby="ht">
   <h2 id="ht">Loup géant</h2>
@@ -110,31 +134,41 @@ input[type=range]{height:34px}
   <div class="leg"><span class="sw green"></span><span>Le trait vert marque la limite de la zone de jeu.</span></div>
   <div class="leg"><span class="sw grey"></span><span>Le gris, c’est hors jeu.</span></div>
   <p class="hint">Pince l’écran pour zoomer. Le bouton ⤢ montre toute la zone, ◎ te ramène sur ta position. Autorise la localisation quand le téléphone te le demande.</p>
+  <p class="hint"><a href="app.html">Ouvrir la version appli (installable)</a></p>
   <button class="b main" id="helpOk" type="button">C’est parti</button>
 </div></div>
 <div class="veil" id="pinV"><div class="card" role="dialog" aria-labelledby="pt">
   <h2 id="pt">Mode administrateur</h2>
   <p class="sub">Entre ton code pour régler la partie.</p>
-  <input id="pin" type="password" inputmode="numeric" autocomplete="off" aria-label="Code administrateur">
+  <input id="pin" type="password" autocomplete="off" autocapitalize="characters" aria-label="Code administrateur">
+  <label class="chk"><input type="checkbox" id="pinField"> Je suis l’admin de terrain (je me cache)</label>
+  <p class="hint">Sans la case : admin virtuel, qui gère la partie à distance.</p>
   <button class="b main" id="pinOk" type="button">Ouvrir</button>
   <button class="b" id="pinNo" type="button" style="width:100%;margin-top:8px">Annuler</button>
 </div></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
-// Code pour ouvrir le mode administrateur : à changer avant de publier
-const PIN = "1234";
+// Le code admin n’est plus écrit en clair : seule son empreinte est ici
+const SALT = "lg-6e437d03c7a6ede2", PIN_HASH = "9b24904a8e6ff277baa0b17535db7d0463faaf97f60eccce30e449a784c17047";
+async function hashCode(v) {
+  const n = v.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const k = await crypto.subtle.importKey("raw", new TextEncoder().encode(n), "PBKDF2", false, ["deriveBits"]);
+  const b = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: new TextEncoder().encode(SALT), iterations: 150000, hash: "SHA-256" }, k, 256);
+  return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join("");
+}
 // Adresse de ta base Firebase, sans / à la fin. Laisse vide pour le mode « lien » seul.
 const DB = "https://chasse-a-l-homme-22573-default-rtdb.europe-west1.firebasedatabase.app";
 // Marge autour de la zone visible par les joueurs (0.3 = 30 % de chaque côté)
 const MARGIN = 0.3;
+const DBU = DB.replace(/\/$/, "");
 
 const $ = id => document.getElementById(id);
 const show = id => $(id).classList.add("show"), hide = id => $(id).classList.remove("show");
 let tt;
 function toast(t) { const e = $("toast"); e.textContent = t; e.classList.add("show"); clearTimeout(tt); tt = setTimeout(() => e.classList.remove("show"), 2600); }
 function setFold(b) { $("panel").classList.toggle("fold", b); $("fold").textContent = b ? "Agrandir" : "Réduire"; }
-let selfPush = false, cfg = null, fromLink = false, admin = false, placing = false, handle = null;
+let role = null, posData = null, hiderMk = null, lastPush = 0, bCenter = null, bRad = 0, lastPos = null, lastAcc = 0, ch = null, selfPush = false, cfg = null, fromLink = false, admin = false, placing = false, handle = null;
 
 try {
   const m = location.hash.match(/z=([^&]+)/);
@@ -164,11 +198,43 @@ function draw() {
   const b = zoneBounds();
   rect.setBounds(b); casing.setBounds(b);
   mask.setLatLngs([world, [b.getSouthWest(), b.getNorthWest(), b.getNorthEast(), b.getSouthEast()]]);
-  if (cfg.ci) { circ.setLatLng(cfg.ci).setRadius(cfg.r || 80); if (!map.hasLayer(circ)) circ.addTo(map); }
-  else if (map.hasLayer(circ)) map.removeLayer(circ);
+  const hiddenForPlayers = cfg.show === false;
+  if (cfg.ci && !battleActive(cfg) && (admin || !hiddenForPlayers)) {
+    circ.setLatLng(cfg.ci).setRadius(cfg.r || 80);
+    circ.setStyle({ opacity: hiddenForPlayers ? .45 : 1, fillOpacity: hiddenForPlayers ? .06 : .2 });
+    if (!map.hasLayer(circ)) circ.addTo(map);
+  } else if (map.hasLayer(circ)) map.removeLayer(circ);
   $("wo").textContent = cfg.w + " m";
   $("ho").textContent = cfg.h + " m";
   $("ro").textContent = (cfg.r || 80) + " m";
+  syncCircleHandle();
+  updateStatus();
+}
+
+// Poignée rouge : déplacer le cercle à la main (admin uniquement)
+function syncCircleHandle() {
+  if (admin && cfg.ci) {
+    if (!ch) {
+      ch = L.marker(cfg.ci, {
+        draggable: true, zIndexOffset: 900,
+        icon: L.divIcon({ className: "", html: '<div class="chandle">◎</div>', iconSize: [38, 38], iconAnchor: [19, 19] })
+      }).addTo(map);
+      ch.on("drag", e => { const q = e.target.getLatLng(); cfg.ci = [q.lat, q.lng]; circ.setLatLng(cfg.ci); });
+    } else { ch.setLatLng(cfg.ci); }
+  } else if (ch) { map.removeLayer(ch); ch = null; }
+}
+
+// Texte d’état : distance au cercle, ou hors zone
+function updateStatus() {
+  if (!lastPos) return;
+  const here = L.latLng(lastPos);
+  let t = "Ta position · précision ~" + Math.round(lastAcc) + " m";
+  if (!zoneBounds().contains(here)) t = "Tu es hors de la zone de jeu";
+  else if (curTarget()) {
+    const tg = curTarget(); const d = here.distanceTo(L.latLng(tg.c)) - tg.r;
+    t = d <= 0 ? "Tu es dans le cercle" : "Cercle à " + (d >= 1000 ? (d / 1000).toFixed(1) + " km" : Math.round(d) + " m");
+  }
+  $("stxt").textContent = t;
 }
 
 // Joueurs : toute la zone visible avec une marge, zoom libre, impossible de sortir de la marge
@@ -193,7 +259,11 @@ if ("geolocation" in navigator) {
     const ll = [p.coords.latitude, p.coords.longitude];
     me.setLatLng(ll); acc.setLatLng(ll).setRadius(p.coords.accuracy);
     if (!map.hasLayer(me)) { acc.addTo(map); me.addTo(map); }
-    $("stxt").textContent = "Ta position · précision ~" + Math.round(p.coords.accuracy) + " m";
+    lastPos = ll; lastAcc = p.coords.accuracy; updateStatus();
+    if (role === "terrain" && DB && cfg.bonus && (cfg.bonus.track || battleActive(cfg)) && Date.now() - lastPush > 3000) {
+      lastPush = Date.now();
+      fetch(DBU + "/pos.json", { method: "PUT", body: JSON.stringify({ lat: ll[0], lng: ll[1], t: Date.now() }) }).catch(() => {});
+    }
     if (firstFix && !fromLink) { cfg.c = ll; draw(); map.setView(ll, 16); }
     firstFix = false;
   }, () => { $("stxt").textContent = "Position indisponible : autorise la localisation."; },
@@ -213,7 +283,7 @@ function enterAdmin() {
   $("fabs").style.display = "none";
   $("status").style.display = "none";
   $("adminBtn").textContent = "Admin ✓";
-  $("w").value = cfg.w; $("h").value = cfg.h; $("r").value = cfg.r || 80;
+  $("w").value = cfg.w; $("h").value = cfg.h; $("r").value = cfg.r || 80; $("vis").checked = cfg.show !== false;
   unlockAdmin();
   map.fitBounds(zoneBounds().pad(0.3), { animate: false });
   handle = L.marker(cfg.c, {
@@ -226,6 +296,7 @@ function enterAdmin() {
 
 function exitAdmin() {
   admin = false; placing = false;
+  draw();
   $("place").classList.remove("on");
   if (handle) { map.removeLayer(handle); handle = null; }
   $("fabs").style.display = "flex";
@@ -235,12 +306,17 @@ function exitAdmin() {
 
 $("adminBtn").onclick = () => {
   if (admin) return;
+  if (role) { enterAdmin(); return; }
   $("pin").value = "";
   show("pinV");
   setTimeout(() => $("pin").focus(), 60);
 };
-$("pinOk").onclick = () => {
-  if ($("pin").value !== PIN) { toast("Code incorrect"); $("pin").value = ""; return; }
+$("pinOk").onclick = async () => {
+  let ok = false;
+  try { ok = (await hashCode($("pin").value)) === PIN_HASH; } catch (e) { toast("Ouvre le site en https"); return; }
+  if (!ok) { await new Promise(r => setTimeout(r, 1000)); toast("Code incorrect"); $("pin").value = ""; return; }
+  role = $("pinField").checked ? "terrain" : "virtuel";
+  try { sessionStorage.setItem("lg_role", role); } catch (e) {}
   hide("pinV");
   enterAdmin();
 };
@@ -258,6 +334,7 @@ $("helpOk").onclick = () => { hide("helpV"); try { localStorage.setItem("lg_seen
 $("w").oninput = e => { cfg.w = +e.target.value; draw(); };
 $("h").oninput = e => { cfg.h = +e.target.value; draw(); };
 $("r").oninput = e => { cfg.r = +e.target.value; draw(); };
+$("vis").onchange = e => { cfg.show = e.target.checked; draw(); };
 
 $("place").onclick = () => {
   placing = true;
@@ -275,7 +352,7 @@ map.on("click", e => {
   setFold(false);
   toast("Cercle placé");
   $("place").classList.remove("on");
-  $("hint").textContent = "Cercle placé. Ajuste son rayon ou valide.";
+  $("hint").textContent = "Cercle placé. Déplace-le avec la poignée rouge, ajuste son rayon ou valide.";
   draw();
 });
 
@@ -321,6 +398,84 @@ async function pull() {
     firstPull = false;
   } catch (e) {}
 }
+
+try { role = sessionStorage.getItem("lg_role"); } catch (e) {}
+
+function battleActive(c) { return !!(c && c.battle && c.battle.on); }
+function battleRadius(b) { return b.r0 + (b.r1 - b.r0) * Math.min(1, Math.max(0, (Date.now() - b.start) / b.dur)); }
+function curTarget() {
+  if (battleActive(cfg) && bCenter) return { c: bCenter, r: bRad };
+  if (cfg.ci && cfg.show !== false) return { c: cfg.ci, r: cfg.r || 80 };
+  return null;
+}
+const bc = L.circle([0, 0], { radius: 1, color: "#c2410c", weight: 4, fillColor: "#c2410c", fillOpacity: .12, interactive: false });
+const pad2 = n => String(n).padStart(2, "0");
+
+function tick() {
+  const t = $("timer");
+  if (cfg.timer && cfg.timer.end) {
+    const rem = cfg.timer.end - Date.now();
+    t.hidden = false;
+    t.textContent = rem > 0 ? pad2(Math.floor(rem / 60000)) + ":" + pad2(Math.floor(rem / 1000) % 60) : "Temps écoulé";
+  } else t.hidden = true;
+  if (battleActive(cfg)) {
+    const c = role === "terrain" && lastPos ? lastPos : (posData ? [posData.lat, posData.lng] : null);
+    if (c) { bCenter = c; bRad = battleRadius(cfg.battle); bc.setLatLng(c).setRadius(bRad); if (!map.hasLayer(bc)) bc.addTo(map); updateStatus(); }
+  } else { bCenter = null; if (map.hasLayer(bc)) map.removeLayer(bc); }
+}
+setInterval(tick, 1000);
+
+async function pollPos() {
+  if (!DB || role === "terrain") return;
+  const virt = role === "virtuel" && cfg.bonus && cfg.bonus.track;
+  if (hiderMk && !virt) { map.removeLayer(hiderMk); hiderMk = null; }
+  if (!virt && !battleActive(cfg)) return;
+  try {
+    const p = await (await fetch(DBU + "/pos.json", { cache: "no-store" })).json();
+    if (!p || !p.lat) return;
+    posData = p;
+    if (virt) {
+      const ll = [p.lat, p.lng];
+      if (!hiderMk) hiderMk = L.marker(ll, { icon: L.divIcon({ className: "", html: '<div class="hider">🐺</div>', iconSize: [40, 40], iconAnchor: [20, 20] }), interactive: false, zIndexOffset: 800 }).addTo(map);
+      else hiderMk.setLatLng(ll);
+    }
+  } catch (e) {}
+}
+setInterval(pollPos, 3000);
+
+function pushState() {
+  if (!DB) { toast("Base Firebase non configurée"); return; }
+  selfPush = true;
+  fetch(DBU + "/state.json", { method: "PUT", body: JSON.stringify(Object.assign({}, cfg, { t: Date.now() })) })
+    .then(r => toast(r.ok ? "Envoyé aux joueurs ✓" : "Échec de l’envoi")).catch(() => toast("Pas de connexion"));
+}
+
+const BON = { bTrack: ["track", "oTrack"], bAuto: ["auto", "oAuto"], bTimer: ["timer", "oTimer"], bBattle: ["battle", "oBattle"] };
+function loadBonus() {
+  const b = cfg.bonus || {};
+  for (const id in BON) { $(id).checked = !!b[BON[id][0]]; $(BON[id][1]).hidden = !$(id).checked; }
+}
+for (const id in BON) $(id).onchange = e => {
+  cfg.bonus = cfg.bonus || {};
+  cfg.bonus[BON[id][0]] = e.target.checked;
+  $(BON[id][1]).hidden = !e.target.checked;
+};
+$("genC").onclick = () => {
+  const p = role === "terrain" ? lastPos : (posData ? [posData.lat, posData.lng] : null);
+  if (!p) { toast("Active le suivi : position de la cachette inconnue"); return; }
+  const r = cfg.r || 80, d = r * 0.7 * Math.sqrt(Math.random()), a = Math.random() * 2 * Math.PI;
+  cfg.ci = [p[0] + d * Math.cos(a) / 111320, p[1] + d * Math.sin(a) / (111320 * Math.cos(p[0] * Math.PI / 180))];
+  draw(); toast("Cercle généré, tu peux encore le déplacer");
+};
+$("tGo").onclick = () => { cfg.timer = { end: Date.now() + Math.max(1, +$("tMin").value || 1) * 60000 }; pushState(); };
+$("tStop").onclick = () => { cfg.timer = null; pushState(); };
+$("bGo").onclick = () => {
+  cfg.bonus = cfg.bonus || {}; cfg.bonus.track = true; $("bTrack").checked = true;
+  cfg.battle = { on: true, start: Date.now(), dur: Math.max(1, +$("bDur").value || 1) * 60000, r0: Math.round(Math.hypot(cfg.w, cfg.h)), r1: Math.max(10, +$("bR1").value || 30) };
+  draw(); pushState();
+};
+$("bStop").onclick = () => { cfg.battle = null; draw(); pushState(); };
+
 
 draw();
 if (fromLink) lockPlayer();
