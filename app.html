@@ -9,6 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="Loup géant">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/svg+xml" href="logo.svg">
 <title>Loup géant – carte du quartier</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
@@ -80,7 +81,13 @@ input[type=range]{height:34px}
 .chk input{width:22px;height:22px;accent-color:var(--zone)}
 #timer{position:fixed;top:calc(env(safe-area-inset-top,0px) + 12px);left:50%;transform:translateX(-50%);z-index:900;background:var(--fg);color:var(--bg);border-radius:999px;padding:0 16px;height:42px;display:flex;align-items:center;font:700 17px inherit;font-variant-numeric:tabular-nums;box-shadow:var(--shadow)}
 #timer[hidden]{display:none}
-.hider{width:40px;height:40px;border-radius:50%;background:var(--bg);display:grid;place-items:center;font-size:22px;border:3px solid #c2410c;box-shadow:var(--shadow)}
+.hider{width:24px;height:24px;border-radius:50%;background:#facc15;border:3px solid #fff;box-shadow:0 0 0 0 rgba(250,204,21,.7);animation:pulseY 2s infinite}
+@keyframes pulseY{70%{box-shadow:0 0 0 18px rgba(250,204,21,0)}100%{box-shadow:0 0 0 0 rgba(250,204,21,0)}}
+.dotY{display:inline-block;width:10px;height:10px;border-radius:50%;background:#facc15;margin-left:7px;border:1.5px solid var(--bg);vertical-align:middle}
+.hb{display:flex;gap:6px}
+.main2{background:var(--zone);border-color:var(--zone);color:#fff}
+#okQuick{display:none}
+#panel.fold #okQuick{display:inline-block}
 details.bonus{border:1.5px solid var(--line);border-radius:14px;padding:4px 14px;margin:14px 0 0}
 details.bonus summary{font-weight:700;min-height:42px;display:flex;align-items:center;cursor:pointer}
 .opt{margin:0 0 8px 32px}
@@ -103,6 +110,10 @@ details.bonus summary{font-weight:700;min-height:42px;display:flex;align-items:c
 .bo .chk span{display:flex;flex-direction:column;gap:2px;font-size:14px}
 .bo .chk small{font-weight:400;color:var(--mut);font-size:12.5px;line-height:1.35}
 .st{font-weight:700;font-size:13px;margin:4px 0}
+.logo{display:block;margin:0 0 8px;border-radius:18px}
+.qrs{display:flex;gap:16px;justify-content:center;margin:10px 0}
+.qrs figure{margin:0;text-align:center;font-size:12.5px;color:var(--mut)}
+.qrs img{display:block;width:116px;height:116px;border-radius:10px;border:1px solid var(--line);margin-bottom:4px}
 </style>
 </head>
 <body>
@@ -116,7 +127,7 @@ details.bonus summary{font-weight:700;min-height:42px;display:flex;align-items:c
 </div>
 
 <section id="panel" aria-label="Réglages administrateur">
-  <div class="phead"><h2>Préparer la partie</h2><button class="b sm" id="fold" type="button">Réduire</button></div>
+  <div class="phead"><h2>Préparer la partie</h2><span class="hb"><button class="b sm main2" id="okQuick" type="button">Valider</button><button class="b sm" id="fold" type="button">Réduire</button></span></div>
   <div id="pbody">
     <div class="seg" id="seg"><span>Menu :</span><button class="b sm" data-p="bottom" type="button">Bas</button><button class="b sm" data-p="top" type="button">Haut</button><button class="b sm" data-p="left" type="button">Gauche</button><button class="b sm" data-p="right" type="button">Droite</button></div>
     <div class="step"><span class="n">1</span><div><strong>Place la zone</strong><p class="hint">Glisse la poignée orange pour déplacer le carré, puis règle sa taille.</p></div></div>
@@ -129,13 +140,13 @@ details.bonus summary{font-weight:700;min-height:42px;display:flex;align-items:c
     <details class="bonus"><summary>Bonus (facultatif)</summary>
       <p class="hint">Des options en plus pour pimenter la partie. Coche-en une pour voir ses réglages.</p>
       <div class="seg"><span id="roleTxt"></span><button class="b sm" id="roleBtn" type="button">Changer</button></div>
-      <div class="bo"><label class="chk"><input type="checkbox" id="bTrack"><span><b>Suivi de l’admin de terrain</b><small>Le téléphone de celui qui se cache envoie sa position. Seul l’admin virtuel la voit, avec un 🐺 sur sa carte.</small></span></label>
+      <div class="bo"><label class="chk"><input type="checkbox" id="bTrack"><span><b>Suivi de l’admin de terrain</b><small>Le téléphone de celui qui se cache envoie sa position. Seul l’admin virtuel la voit, sous forme d’un point jaune sur sa carte.</small></span></label>
         <div class="opt" id="oTrack" hidden><p class="st" id="stTrack"></p><p class="hint">Le téléphone de terrain doit garder la page (ou l’appli) ouverte.</p></div></div>
       <div class="bo"><label class="chk"><input type="checkbox" id="bAuto"><span><b>Cercle automatique</b><small>Place le cercle au hasard autour de la cachette, jamais pile dessus. Active le suivi tout seul.</small></span></label>
         <div class="opt" id="oAuto" hidden><p class="st" id="stAuto"></p><button class="b" id="genC" type="button">Générer le cercle</button></div></div>
       <div class="bo"><label class="chk"><input type="checkbox" id="bTimer"><span><b>Minuteur</b><small>Un compte à rebours affiché chez tous les joueurs.</small></span></label>
         <div class="opt" id="oTimer" hidden><p class="st" id="stTimer"></p><div class="inl"><input type="number" id="tMin" value="30" min="1"> min <button class="b sm" id="tGo" type="button">Lancer</button><button class="b sm warn" id="tStop" type="button">Arrêter</button></div></div></div>
-      <div class="bo"><label class="chk"><input type="checkbox" id="bBattle"><span><b>Bataille finale</b><small>Un très grand cercle collé à l’admin de terrain, qui rétrécit sans arrêt. À ce moment-là, tous les joueurs voient sa position.</small></span></label>
+      <div class="bo"><label class="chk"><input type="checkbox" id="bBattle"><span><b>Bataille finale</b><small>Un très grand cercle collé à l’admin de terrain, qui rétrécit sans arrêt. À ce moment-là, tous les joueurs voient sa position (point jaune).</small></span></label>
         <div class="opt" id="oBattle" hidden><p class="st" id="stBattle"></p><div class="inl">durée <input type="number" id="bDur" value="10" min="1"> min, rayon final <input type="number" id="bR1" value="30" min="10"> m</div><div class="inl"><button class="b sm" id="bGo" type="button">Lancer</button><button class="b sm warn" id="bStop" type="button">Arrêter</button></div></div></div>
     </details>
     <div class="step"><span class="n">3</span><div><strong>Valide</strong><p class="hint">Les joueurs voient le changement en quelques secondes.</p></div></div>
@@ -152,6 +163,7 @@ details.bonus summary{font-weight:700;min-height:42px;display:flex;align-items:c
 <div id="timer" hidden></div>
 <div id="toast" role="status"></div>
 <div class="veil" id="helpV"><div class="card" role="dialog" aria-labelledby="ht">
+  <img class="logo" src="logo.svg" alt="" width="72" height="72">
   <h2 id="ht">Loup géant</h2>
   <p class="sub">Retrouve la cachette dans la zone de jeu.</p>
   <div class="leg"><span class="sw blue"></span><span>Ce point bleu, c’est toi. Les autres joueurs ne le voient pas.</span></div>
@@ -161,6 +173,10 @@ details.bonus summary{font-weight:700;min-height:42px;display:flex;align-items:c
   <p class="hint">Pince l’écran pour zoomer. Le bouton ⤢ montre toute la zone, ◎ te ramène sur ta position. Autorise la localisation quand le téléphone te le demande.</p>
   <button class="b" id="installBtn" type="button" hidden style="width:100%;margin-top:10px">Installer sur l’écran d’accueil</button>
   <p class="hint" id="iosHint" hidden>Sur iPhone : touche Partager, puis « Sur l’écran d’accueil ».</p>
+  <details class="bonus"><summary>Partager le jeu (QR codes)</summary>
+    <div class="qrs"><figure><img src="qr-site.png" alt="QR code du site" width="116" height="116"><figcaption>Site web</figcaption></figure><figure><img src="qr-appli.png" alt="QR code de l’appli" width="116" height="116"><figcaption>Appli installable</figcaption></figure></div>
+    <p class="hint">Fais scanner un QR code pour ouvrir le jeu directement.</p>
+  </details>
   <button class="b main" id="helpOk" type="button">C’est parti</button>
 </div></div>
 <div class="veil" id="pinV"><div class="card" role="dialog" aria-labelledby="pt">
@@ -312,7 +328,7 @@ function enterAdmin() {
   $("panel").style.display = "block";
   $("fabs").style.display = "none";
   $("status").style.display = "none";
-  $("adminBtn").textContent = "Admin ✓";
+  setAdminLabel();
   $("w").value = cfg.w; $("h").value = cfg.h; $("r").value = cfg.r || 80; $("vis").checked = cfg.show !== false;
   loadBonus(); updateRole();
   unlockAdmin();
@@ -333,7 +349,7 @@ function exitAdmin() {
   if (handle) { map.removeLayer(handle); handle = null; }
   $("fabs").style.display = "flex";
   $("status").style.display = "flex";
-  $("adminBtn").textContent = "Admin";
+  setAdminLabel();
 }
 
 $("adminBtn").onclick = () => {
@@ -428,6 +444,7 @@ async function pull() {
 }
 
 try { role = sessionStorage.getItem("lg_role"); } catch (e) {}
+setAdminLabel();
 
 function battleActive(c) { return !!(c && c.battle && c.battle.on); }
 function battleRadius(b) { return b.r0 + (b.r1 - b.r0) * Math.min(1, Math.max(0, (Date.now() - b.start) / b.dur)); }
@@ -456,16 +473,16 @@ setInterval(tick, 1000);
 
 async function pollPos() {
   if (!DB || role === "terrain") return;
-  const virt = role === "virtuel" && cfg.bonus && cfg.bonus.track;
-  if (hiderMk && !virt) { map.removeLayer(hiderMk); hiderMk = null; }
-  if (!virt && !battleActive(cfg)) return;
+  const showMk = (role === "virtuel" && cfg.bonus && cfg.bonus.track) || battleActive(cfg);
+  if (hiderMk && !showMk) { map.removeLayer(hiderMk); hiderMk = null; }
+  if (!showMk) return;
   try {
     const p = await (await fetch(DBU + "/pos.json", { cache: "no-store" })).json();
     if (!p || !p.lat) return;
     posData = p;
-    if (virt) {
+    if (showMk) {
       const ll = [p.lat, p.lng];
-      if (!hiderMk) hiderMk = L.marker(ll, { icon: L.divIcon({ className: "", html: '<div class="hider">🐺</div>', iconSize: [40, 40], iconAnchor: [20, 20] }), interactive: false, zIndexOffset: 800 }).addTo(map);
+      if (!hiderMk) hiderMk = L.marker(ll, { icon: L.divIcon({ className: "", html: '<div class="hider"></div>', iconSize: [24, 24], iconAnchor: [12, 12] }), interactive: false, zIndexOffset: 800 }).addTo(map);
       else hiderMk.setLatLng(ll);
     }
   } catch (e) {}
@@ -556,7 +573,7 @@ function updateRole() { $("roleTxt").textContent = "Rôle : " + (role === "terra
 $("roleBtn").onclick = () => {
   role = role === "terrain" ? "virtuel" : "terrain";
   try { sessionStorage.setItem("lg_role", role); } catch (e) {}
-  updateRole(); toast("Rôle changé : " + (role === "terrain" ? "admin de terrain" : "admin virtuel"));
+  updateRole(); setAdminLabel(); toast("Rôle changé : " + (role === "terrain" ? "admin de terrain" : "admin virtuel"));
 };
 function bonusStatus() {
   const now = Date.now();
@@ -577,6 +594,9 @@ function areaBounds() {
   return L.latLngBounds([c.lat - dLat, c.lng - dLng], [c.lat + dLat, c.lng + dLng]);
 }
 $("layBtn").onclick = () => { map.removeLayer(base); base = base === sat ? plan : sat; base.addTo(map); errs = 0; };
+
+function setAdminLabel() { $("adminBtn").innerHTML = "Admin" + (role === "terrain" ? '<i class="dotY"></i>' : "") + (admin ? " ✓" : ""); }
+$("okQuick").onclick = () => $("ok").click();
 
 draw();
 if (fromLink) lockPlayer();
