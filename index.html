@@ -83,6 +83,17 @@ details.bonus summary{font-weight:700;min-height:42px;display:flex;align-items:c
 .opt{margin:0 0 8px 32px}
 .inl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0;font-size:14px}
 .inl input[type=number]{width:70px;padding:8px;font-size:16px;border:1.5px solid var(--line);border-radius:10px;background:transparent;color:var(--fg)}
+#panel{transition:opacity .25s}
+#panel.ghost{opacity:.12;pointer-events:none}
+#panel.p-top{top:calc(env(safe-area-inset-top,0px) + 64px);bottom:auto}
+#panel.p-left,#panel.p-right{top:calc(env(safe-area-inset-top,0px) + 64px);bottom:auto;max-height:calc(100dvh - 130px);width:min(320px,86vw);max-width:none;margin:0}
+#panel.p-left{left:8px;right:auto}
+#panel.p-right{right:8px;left:auto}
+.seg{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:8px 0 0;font-size:13px;color:var(--mut)}
+#ghostBar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 22px);z-index:1002;background:var(--fg);color:var(--bg);border-radius:999px;padding:6px 6px 6px 16px;display:none;align-items:center;gap:10px;font-weight:700;font-size:14px;box-shadow:var(--shadow);white-space:nowrap}
+#ghostBar.show{display:flex}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--bg);color:var(--fg)}
+.pm{display:flex;gap:8px;margin:2px 0}
 </style>
 </head>
 <body>
@@ -97,6 +108,7 @@ details.bonus summary{font-weight:700;min-height:42px;display:flex;align-items:c
 <section id="panel" aria-label="Réglages administrateur">
   <div class="phead"><h2>Préparer la partie</h2><button class="b sm" id="fold" type="button">Réduire</button></div>
   <div id="pbody">
+    <div class="seg" id="seg"><span>Menu :</span><button class="b sm" data-p="bottom" type="button">Bas</button><button class="b sm" data-p="top" type="button">Haut</button><button class="b sm" data-p="left" type="button">Gauche</button><button class="b sm" data-p="right" type="button">Droite</button></div>
     <div class="step"><span class="n">1</span><div><strong>Place la zone</strong><p class="hint">Glisse la poignée orange pour déplacer le carré, puis règle sa taille.</p></div></div>
     <div class="row"><label for="w">Largeur</label><input id="w" type="range" min="100" max="3000" step="50"><output id="wo"></output></div>
     <div class="row"><label for="h">Hauteur</label><input id="h" type="range" min="100" max="3000" step="50"><output id="ho"></output></div>
@@ -124,6 +136,7 @@ details.bonus summary{font-weight:700;min-height:42px;display:flex;align-items:c
   </div>
 </section>
 
+<div id="ghostBar"><span id="gtxt"></span><button class="b sm" id="gcancel" type="button">Annuler</button></div>
 <div id="timer" hidden></div>
 <div id="toast" role="status"></div>
 <div class="veil" id="helpV"><div class="card" role="dialog" aria-labelledby="ht">
@@ -186,7 +199,7 @@ const world = [[-85, -180], [-85, 180], [85, 180], [85, -180]];
 const mask = L.polygon([world, world], { stroke: false, fillColor: "#7d838c", fillOpacity: .78, interactive: false }).addTo(map);
 const casing = L.rectangle([[0, 0], [1, 1]], { color: "#fff", weight: 9, opacity: .95, fill: false, interactive: false }).addTo(map);
 const rect = L.rectangle([[0, 0], [1, 1]], { color: "#1f7a54", weight: 4, fill: false, interactive: false }).addTo(map);
-const circ = L.circle([0, 0], { radius: 1, color: "#e03131", weight: 3, dashArray: "10 7", fillColor: "#e03131", fillOpacity: .2, interactive: false });
+const circ = L.circle([0, 0], { radius: 1, color: "#e03131", weight: 3, dashArray: "10 7", fillColor: "#e03131", fillOpacity: .2, interactive: true, bubblingMouseEvents: true });
 
 function zoneBounds() {
   const dLat = cfg.h / 2 / 111320;
@@ -295,7 +308,8 @@ function enterAdmin() {
 }
 
 function exitAdmin() {
-  admin = false; placing = false;
+  admin = false;
+  endPlacing();
   draw();
   $("place").classList.remove("on");
   if (handle) { map.removeLayer(handle); handle = null; }
@@ -337,19 +351,15 @@ $("r").oninput = e => { cfg.r = +e.target.value; draw(); };
 $("vis").onchange = e => { cfg.show = e.target.checked; draw(); };
 
 $("place").onclick = () => {
-  placing = true;
-  setFold(true);
-  toast("Touche la carte pour placer le cercle");
-  $("place").classList.add("on");
+  startPlacing("Touche la carte pour placer le cercle");
   $("hint").textContent = "Touche la carte à l’endroit approximatif de la cachette.";
 };
-$("clear").onclick = () => { cfg.ci = null; draw(); };
+$("clear").onclick = () => { cfg.ci = null; draw(); flash(); toast("Cercle supprimé"); };
 
 map.on("click", e => {
   if (!admin || !placing) return;
   cfg.ci = [e.latlng.lat, e.latlng.lng];
-  placing = false;
-  setFold(false);
+  endPlacing();
   toast("Cercle placé");
   $("place").classList.remove("on");
   $("hint").textContent = "Cercle placé. Déplace-le avec la poignée rouge, ajuste son rayon ou valide.";
@@ -476,6 +486,42 @@ $("bGo").onclick = () => {
 };
 $("bStop").onclick = () => { cfg.battle = null; draw(); pushState(); };
 
+
+// Carte au premier plan : le menu devient transparent le temps de poser ou de voir un changement
+function setGhost(b) { $("panel").classList.toggle("ghost", b); }
+let gt;
+function flash() { setGhost(true); clearTimeout(gt); gt = setTimeout(() => { if (!placing) setGhost(false); }, 1600); }
+function startPlacing(msg) { placing = true; setGhost(true); $("gtxt").textContent = msg; $("ghostBar").classList.add("show"); $("place").classList.add("on"); }
+function endPlacing() { placing = false; setGhost(false); $("ghostBar").classList.remove("show"); $("place").classList.remove("on"); }
+$("gcancel").onclick = endPlacing;
+
+// Un clic sur le cercle ouvre ses actions : déplacer ou supprimer
+function circleMenu() {
+  if (!admin || placing || !cfg.ci) return;
+  setFold(false);
+  const d = document.createElement("div");
+  d.innerHTML = '<div class="pm"><button class="b sm" data-a="mv" type="button">Déplacer</button><button class="b sm warn" data-a="rm" type="button">Supprimer</button></div>';
+  d.onclick = e => {
+    const a = e.target.dataset && e.target.dataset.a;
+    if (!a) return;
+    map.closePopup();
+    if (a === "mv") startPlacing("Touche la carte pour déplacer le cercle");
+    else { cfg.ci = null; draw(); flash(); toast("Cercle supprimé"); }
+  };
+  L.popup({ closeButton: true, closeOnClick: false, offset: [0, -4] }).setLatLng(cfg.ci).setContent(d).openOn(map);
+}
+circ.on("click", circleMenu);
+
+// Emplacement du menu admin (mémorisé sur l’appareil)
+function setPos(p) {
+  ["bottom", "top", "left", "right"].forEach(x => $("panel").classList.toggle("p-" + x, x === p));
+  document.querySelectorAll("#seg button").forEach(b => b.classList.toggle("on", b.dataset.p === p));
+  try { localStorage.setItem("lg_pos", p); } catch (e) {}
+}
+document.querySelectorAll("#seg button").forEach(b => b.onclick = () => setPos(b.dataset.p));
+let savedPos = "bottom";
+try { savedPos = localStorage.getItem("lg_pos") || "bottom"; } catch (e) {}
+setPos(savedPos);
 
 draw();
 if (fromLink) lockPlayer();
