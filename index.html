@@ -5,7 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1f7a54">
 <meta name="mobile-web-app-capable" content="yes">
-
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Loup géant">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/svg+xml" href="logo.svg">
 <title>Loup géant – carte du quartier</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
@@ -216,7 +219,8 @@ html.isVisit .me{background:#9ca3af}
   <div class="leg"><span class="sw green"></span><span>Le trait vert marque la limite de la zone de jeu.</span></div>
   <div class="leg"><span class="sw grey"></span><span>Le gris, c’est hors jeu.</span></div>
   <p class="hint">Pince l’écran pour zoomer. Le bouton ⤢ montre toute la zone, ◎ te ramène sur ta position. Autorise la localisation quand le téléphone te le demande.</p>
-  <p class="hint"><a href="app.html">Ouvrir la version appli (installable)</a></p>
+  <button class="b" id="installBtn" type="button" hidden style="width:100%;margin-top:10px">Installer sur l’écran d’accueil</button>
+  <p class="hint" id="iosHint" hidden>Sur iPhone : touche Partager, puis « Sur l’écran d’accueil ».</p>
   <p class="hint">Couleurs sur la carte : <b>bleu</b> joueur, <b>jaune</b> admin de terrain, <b>rose</b> admin virtuel, <b>gris</b> visiteur.</p>
   <label class="pseudo">Ton pseudo<span class="pr"><input id="pseudo" maxlength="16" autocomplete="nickname" placeholder="ex : Louna"><button class="b sm main2" id="pseudoOk" type="button">OK</button></span></label>
   <p class="hint" id="pseudoMsg">Il s’affiche à côté de ton point. Deux personnes ne peuvent pas avoir le même pseudo.</p>
@@ -715,6 +719,12 @@ $("bGo").onclick = () => {
 };
 $("bStop").onclick = () => { cfg.battle = null; draw(); pushState(); };
 
+// Installation sur l’écran d’accueil
+let dip = null;
+addEventListener("beforeinstallprompt", e => { e.preventDefault(); dip = e; $("installBtn").hidden = false; });
+$("installBtn").onclick = async () => { if (!dip) return; dip.prompt(); await dip.userChoice; dip = null; $("installBtn").hidden = true; };
+if (/iphone|ipad|ipod/i.test(navigator.userAgent) && !navigator.standalone) $("iosHint").hidden = false;
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 
 // Carte au premier plan : le menu devient transparent le temps de poser ou de voir un changement
 function setGhost(b) { $("panel").classList.toggle("ghost", b); }
